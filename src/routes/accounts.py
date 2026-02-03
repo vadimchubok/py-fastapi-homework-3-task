@@ -6,7 +6,7 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db, models, UserGroupEnum
-from config import get_jwt_auth_manager, BaseAppSettings
+from config import get_jwt_auth_manager
 from schemas.accounts import (
     UserRegistrationRequestSchema,
     UserRegistrationResponseSchema,
@@ -22,8 +22,7 @@ from schemas.accounts import (
 from security.passwords import hash_password, verify_password
 from security.interfaces import JWTAuthManagerInterface
 
-router = APIRouter(prefix="/accounts", tags=["accounts"])
-
+router = APIRouter(tags=["accounts"])
 
 @router.post(
     "/register/",
@@ -250,7 +249,13 @@ async def refresh_access_token(
     db: AsyncSession = Depends(get_db),
     jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
 ):
-    payload = jwt_manager.decode_refresh_token(data.refresh_token)
+    try:
+        payload = jwt_manager.decode_refresh_token(data.refresh_token)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
     result = await db.execute(
         select(models.RefreshTokenModel).where(
